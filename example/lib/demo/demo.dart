@@ -66,6 +66,7 @@ class _ChatPageState extends State<ChatPage>
   );
 
   final _halloweenMode = ValueNotifier(false);
+  final _vietnameseMode = ValueNotifier(false);
 
   @override
   void initState() {
@@ -86,9 +87,9 @@ class _ChatPageState extends State<ChatPage>
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-    valueListenable: _halloweenMode,
+    valueListenable: _vietnameseMode, // _halloweenMode,
     builder:
-        (context, halloween, child) => Scaffold(
+        (context, vietnamese, child) => Scaffold(
           appBar: AppBar(
             title: const Text(App.title),
             actions: [
@@ -112,6 +113,15 @@ class _ChatPageState extends State<ChatPage>
               ),
               IconButton(
                 onPressed: () {
+                  _vietnameseMode.value = !_vietnameseMode.value;
+                  if (_vietnameseMode.value) _resetAnimation();
+                },
+                tooltip:
+                    _vietnameseMode.value ? 'Normal Mode' : 'Vietnamese Theme',
+                icon: Text('🇻🇳'),
+              ),
+              IconButton(
+                onPressed: () {
                   _halloweenMode.value = !_halloweenMode.value;
                   if (_halloweenMode.value) _resetAnimation();
                 },
@@ -126,26 +136,45 @@ class _ChatPageState extends State<ChatPage>
             builder:
                 (context, child) => Stack(
                   children: [
-                    SizedBox(
-                      height: double.infinity,
-                      width: double.infinity,
-                      child: Image.asset(
-                        'assets/halloween-bg.png',
-                        fit: BoxFit.cover,
-                        opacity: _animationController,
+                    if (_vietnameseMode.value)
+                      SizedBox(
+                        height: double.infinity,
+                        width: double.infinity,
+                        child: Image.asset(
+                          'assets/vietnamese-bg.jpg',
+                          fit: BoxFit.cover,
+                          opacity: _animationController,
+                        ),
+                      )
+                    else if (_halloweenMode.value)
+                      SizedBox(
+                        height: double.infinity,
+                        width: double.infinity,
+                        child: Image.asset(
+                          'assets/halloween-bg.png',
+                          fit: BoxFit.cover,
+                          opacity: _animationController,
+                        ),
                       ),
-                    ),
                     LlmChatView(
                       provider: _provider,
-                      style: style,
+                      style: _vietnameseMode.value ? _vietnameseStyle : style,
                       welcomeMessage:
-                          'Hello and welcome to the Flutter AI Toolkit!',
-                      suggestions: [
-                        'I\'m a Star Wars fan. What should I wear for Halloween?',
-                        'I\'m allergic to peanuts. What candy should I avoid at '
-                            'Halloween?',
-                        'What\'s the difference between a pumpkin and a squash?',
-                      ],
+                          _vietnameseMode.value
+                              ? 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?'
+                              : 'Hello and welcome to the Flutter AI Toolkit!',
+                      suggestions:
+                          _vietnameseMode.value
+                              ? [
+                                'Giới thiệu về Việt Nam',
+                                'Món ăn truyền thống Việt Nam',
+                                'Địa điểm du lịch nổi tiếng',
+                              ]
+                              : [
+                                'I\'m a Star Wars fan. What should I wear for Halloween?',
+                                'I\'m allergic to peanuts. What candy should I avoid at Halloween?',
+                                'What\'s the difference between a pumpkin and a squash?',
+                              ],
                     ),
                   ],
                 ),
@@ -156,6 +185,91 @@ class _ChatPageState extends State<ChatPage>
   void _clearHistory() {
     _provider.history = [];
     _resetAnimation();
+  }
+
+  LlmChatViewStyle get _vietnameseStyle {
+    final TextStyle vietnameseTextStyle = GoogleFonts.notoSans(
+      color: const Color(0xFF1A237E), // Deep blue
+      fontSize: 16,
+    );
+
+    final Color primaryColor = const Color(0xFFD32F2F); // Red
+    final Color accentColor = const Color(0xFFFFD600); // Yellow
+    final Color backgroundColor = const Color(0xFFFFF3E0); // Light beige
+
+    return LlmChatViewStyle(
+      backgroundColor: Colors.transparent,
+      progressIndicatorColor: primaryColor,
+      suggestionStyle: SuggestionStyle(
+        textStyle: vietnameseTextStyle.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      chatInputStyle: ChatInputStyle(
+        backgroundColor: Colors.white,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: primaryColor),
+        ),
+        textStyle: vietnameseTextStyle,
+        hintText: 'Nhập tin nhắn...',
+        hintStyle: vietnameseTextStyle.copyWith(color: Colors.grey.shade600),
+      ),
+      userMessageStyle: UserMessageStyle(
+        textStyle: vietnameseTextStyle.copyWith(color: Colors.white),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            topRight: Radius.circular(4),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+      ),
+      llmMessageStyle: LlmMessageStyle(
+        icon: Icons.language, // or a lotus icon
+        iconColor: Colors.white,
+        iconDecoration: BoxDecoration(
+          color: accentColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(4),
+            bottomLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          border: Border.all(color: accentColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(50),
+              blurRadius: 4,
+              offset: Offset(1, 1),
+            ),
+          ],
+        ),
+        markdownStyle: MarkdownStyleSheet(
+          p: vietnameseTextStyle,
+          listBullet: vietnameseTextStyle,
+          h1: vietnameseTextStyle.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: primaryColor,
+          ),
+          // Add more styles as needed
+        ),
+      ),
+      // Style other components similarly
+    );
   }
 
   LlmChatViewStyle get style {

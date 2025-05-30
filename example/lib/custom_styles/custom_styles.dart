@@ -119,6 +119,91 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
+  LlmChatViewStyle get _vietnameseStyle {
+    final TextStyle vietnameseTextStyle = GoogleFonts.notoSans(
+      color: const Color(0xFF1A237E), // Deep blue
+      fontSize: 16,
+    );
+
+    final Color primaryColor = const Color(0xFFD32F2F); // Red
+    final Color accentColor = const Color(0xFFFFD600); // Yellow
+    final Color backgroundColor = const Color(0xFFFFF3E0); // Light beige
+
+    return LlmChatViewStyle(
+      backgroundColor: Colors.transparent,
+      progressIndicatorColor: primaryColor,
+      suggestionStyle: SuggestionStyle(
+        textStyle: vietnameseTextStyle.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      chatInputStyle: ChatInputStyle(
+        backgroundColor: Colors.white,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: primaryColor),
+        ),
+        textStyle: vietnameseTextStyle,
+        hintText: 'Nhập tin nhắn...',
+        hintStyle: vietnameseTextStyle.copyWith(color: Colors.grey.shade600),
+      ),
+      userMessageStyle: UserMessageStyle(
+        textStyle: vietnameseTextStyle.copyWith(color: Colors.white),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            topRight: Radius.circular(4),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+      ),
+      llmMessageStyle: LlmMessageStyle(
+        icon: Icons.language, // or a lotus icon
+        iconColor: Colors.white,
+        iconDecoration: BoxDecoration(
+          color: accentColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(4),
+            bottomLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          border: Border.all(color: accentColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(50),
+              blurRadius: 4,
+              offset: Offset(1, 1),
+            ),
+          ],
+        ),
+        markdownStyle: MarkdownStyleSheet(
+          p: vietnameseTextStyle,
+          listBullet: vietnameseTextStyle,
+          h1: vietnameseTextStyle.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: primaryColor,
+          ),
+          // Add more styles as needed
+        ),
+      ),
+      // Style other components similarly
+    );
+  }
+
   LlmChatViewStyle get style {
     final TextStyle halloweenTextStyle = GoogleFonts.hennyPenny(
       color: Colors.white,
