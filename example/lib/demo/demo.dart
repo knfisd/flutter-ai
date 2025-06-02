@@ -20,7 +20,7 @@ void main() async {
 }
 
 class App extends StatefulWidget {
-  static const title = 'Demo: Flutter AI Toolkit';
+  static const title = 'Demo: hõiAI';
   static final themeMode = ValueNotifier(ThemeMode.light);
 
   const App({super.key});
@@ -62,7 +62,9 @@ class _ChatPageState extends State<ChatPage>
   );
 
   late final _provider = FirebaseProvider(
-    model: FirebaseAI.googleAI().generativeModel(model: 'gemini-2.0-flash'),
+    model: FirebaseAI.googleAI().generativeModel(
+      model: 'gemini-2.0-flash-exp-image-generation',
+    ),
   );
 
   final _halloweenMode = ValueNotifier(false);
@@ -117,18 +119,39 @@ class _ChatPageState extends State<ChatPage>
                   if (_vietnameseMode.value) _resetAnimation();
                 },
                 tooltip:
-                    _vietnameseMode.value ? 'Normal Mode' : 'Vietnamese Theme',
-                icon: Text('🇻🇳'),
+                    _vietnameseMode.value ? 'Chế độ thường' : 'Chủ đề Việt Nam',
+                icon: Text('🌾'),
               ),
               IconButton(
-                onPressed: () {
-                  _halloweenMode.value = !_halloweenMode.value;
-                  if (_halloweenMode.value) _resetAnimation();
+                onPressed: () async {
+                  try {
+                    final model = FirebaseAI.googleAI().generativeModel(
+                      model: 'gemini-2.0-flash-exp-image-generation',
+                      //'imagen-3.0-generate-002', // 'gemini-2.0-flash-exp',
+                    );
+                    final prompt = 'Show me photos of the pyramids';
+                    print('Sending: $prompt');
+                    final response = await model.generateContent([
+                      Content.text(prompt),
+                    ]);
+                    print('Response: ${response.text}'); // ${response.text}');
+                  } catch (e) {
+                    print('Error: $e');
+                  }
                 },
-                tooltip:
-                    _halloweenMode.value ? 'Normal Mode' : 'Halloween Mode',
-                icon: Text('🎃'),
+                tooltip: 'Test',
+                icon: Icon(Icons.bug_report),
+                // child: Icon(Icons.bug_report),
               ),
+              // IconButton(
+              //   onPressed: () {
+              //     _halloweenMode.value = !_halloweenMode.value;
+              //     if (_halloweenMode.value) _resetAnimation();
+              //   },
+              //   tooltip:
+              //       _halloweenMode.value ? 'Normal Mode' : 'Halloween Mode',
+              //   icon: Text('🎃'),
+              // ),
             ],
           ),
           body: AnimatedBuilder(
@@ -161,7 +184,7 @@ class _ChatPageState extends State<ChatPage>
                       style: _vietnameseMode.value ? _vietnameseStyle : style,
                       welcomeMessage:
                           _vietnameseMode.value
-                              ? 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?'
+                              ? 'Xin chào! Tôi là trợ lý ảo của bạn. Tôi có thể giúp gì cho bạn hôm nay?'
                               : 'Hello and welcome to the Flutter AI Toolkit!',
                       suggestions:
                           _vietnameseMode.value
@@ -189,13 +212,15 @@ class _ChatPageState extends State<ChatPage>
 
   LlmChatViewStyle get _vietnameseStyle {
     final TextStyle vietnameseTextStyle = GoogleFonts.notoSans(
-      color: const Color(0xFF1A237E), // Deep blue
-      fontSize: 16,
+      color: const Color(0xFF2E7D32), // Deep green
+      fontSize: 14,
     );
 
-    final Color primaryColor = const Color(0xFFD32F2F); // Red
-    final Color accentColor = const Color(0xFFFFD600); // Yellow
-    final Color backgroundColor = const Color(0xFFFFF3E0); // Light beige
+    final Color primaryColor = const Color(0xFF2E7D32); // Green (rice fields)
+    final Color accentColor = const Color(0xFFFFC107); // Gold (ripe rice)
+    final Color backgroundColor = const Color(
+      0xFFF1F8E9,
+    ); // Light green (young rice)
 
     return LlmChatViewStyle(
       backgroundColor: Colors.transparent,
@@ -214,8 +239,8 @@ class _ChatPageState extends State<ChatPage>
         backgroundColor: Colors.white,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: primaryColor),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accentColor),
         ),
         textStyle: vietnameseTextStyle,
         hintText: 'Nhập tin nhắn...',
@@ -234,10 +259,10 @@ class _ChatPageState extends State<ChatPage>
         ),
       ),
       llmMessageStyle: LlmMessageStyle(
-        icon: Icons.language, // or a lotus icon
+        icon: Icons.grass, // Rice plant icon
         iconColor: Colors.white,
         iconDecoration: BoxDecoration(
-          color: accentColor,
+          color: primaryColor,
           borderRadius: BorderRadius.circular(8),
         ),
         decoration: BoxDecoration(
@@ -261,10 +286,11 @@ class _ChatPageState extends State<ChatPage>
           p: vietnameseTextStyle,
           listBullet: vietnameseTextStyle,
           h1: vietnameseTextStyle.copyWith(
-            fontSize: 22,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             color: primaryColor,
           ),
+          img: vietnameseTextStyle,
           // Add more styles as needed
         ),
       ),
@@ -272,6 +298,7 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
+  // Halloween style
   LlmChatViewStyle get style {
     if (!_halloweenMode.value) {
       return App.themeMode.value == ThemeMode.dark
