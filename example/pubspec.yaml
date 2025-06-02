@@ -26,6 +26,12 @@ dependencies:
   split_view: ^3.2.1
   firebase_core: ^3.13.0
   firebase_ai: ^2.0.0
+  firebase_auth: ^5.3.2
+  google_sign_in: ^6.2.1
+  flutter_facebook_auth: ^7.1.2
+  provider: ^6.1.2
+  email_validator: ^2.1.17
+  flutter_svg: ^2.0.10+1  # For SVG icons like Google logo
   # noto_sans: ^1.0.0  # Good for Vietnamese text
 
 dev_dependencies:
@@ -39,3 +45,4 @@ flutter:
     - assets/recipes_default.json
     - assets/halloween-bg.png
     - assets/vietnamese-bg.jpg
+    - assets/images/

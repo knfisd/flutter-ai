@@ -6,6 +6,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ai_toolkit/flutter_ai_toolkit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
 
 // from `flutterfire config`: https://firebase.google.com/docs/flutter/setup
 import 'firebase_options.dart';
@@ -27,7 +29,14 @@ Future<void> main() async {
     debugPrint('Error initializing recipes app: $e');
   }
 
-  runApp(App());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: App(),
+    ),
+  );
 }
 
 class App extends StatelessWidget {
@@ -39,14 +48,21 @@ class App extends StatelessWidget {
     _router = GoRouter(
       initialLocation: '/',
       routes: [
-        GoRoute(path: '/', builder: (context, state) => HomeScreen()),
-        GoRoute(path: '/chat', builder: (context, state) => _ChatPage()),
-        GoRoute(path: '/demo', builder: (context, state) => demo_app.App()),
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/recipes',
           builder: (context, state) => recipes_app.App(),
         ),
+        // Keep other routes for direct navigation if needed
+        GoRoute(path: '/chat', builder: (context, state) => _ChatPage()),
+        GoRoute(path: '/demo', builder: (context, state) => demo_app.App()),
       ],
+      redirect: (context, state) {
+        // Redirect root to recipes if already authenticated
+        // In a real app, check authentication state here
+        // For now, we'll keep the home screen as the root
+        return null;
+      },
     );
   }
 
