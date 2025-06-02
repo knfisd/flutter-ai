@@ -15,7 +15,8 @@ class Recipe {
     required this.instructions,
     this.tags = const [],
     this.notes = '',
-  });
+    List<Map<String, dynamic>>? relatedMedia,
+  }) : relatedMedia = relatedMedia ?? [];
 
   Recipe.empty(String id)
     : this(
@@ -36,6 +37,9 @@ class Recipe {
     instructions: List<String>.from(json['instructions']),
     tags: json['tags'] == null ? [] : List<String>.from(json['tags']),
     notes: json['notes'] ?? '',
+    relatedMedia: json['related_media'] == null 
+        ? [] 
+        : List<Map<String, dynamic>>.from(json['related_media']),
   );
 
   final String id;
@@ -45,10 +49,12 @@ class Recipe {
   final List<String> instructions;
   final List<String> tags;
   final String notes;
+  final List<Map<String, dynamic>> relatedMedia;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
+    'related_media': relatedMedia,
     'description': description,
     'ingredients': ingredients,
     'instructions': instructions,

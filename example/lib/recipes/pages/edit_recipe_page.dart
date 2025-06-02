@@ -2,17 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:convert';
+import 'dart:async';
 
-import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ai_toolkit/flutter_ai_toolkit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/recipe_data.dart';
 import '../data/recipe_repository.dart';
-import '../data/settings.dart';
 
 class EditRecipePage extends StatefulWidget {
   const EditRecipePage({super.key, required this.recipe});
@@ -23,52 +21,31 @@ class EditRecipePage extends StatefulWidget {
   State<EditRecipePage> createState() => _EditRecipePageState();
 }
 
+class _MediaResult {
+  final String? imageUrl;
+  final String? title;
+  final String? source;
+  final String? url;
+
+  _MediaResult({
+    this.imageUrl,
+    this.title,
+    this.source,
+    this.url,
+  });
+}
+
 class _EditRecipePageState extends State<EditRecipePage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _ingredientsController;
   late final TextEditingController _instructionsController;
+  
+  bool _isSearching = false;
+  List<_MediaResult> _searchResults = [];
+  String? _error;
 
-  final _provider = FirebaseProvider(
-    model: FirebaseAI.googleAI().generativeModel(
-      model: "gemini-2.0-flash",
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        responseSchema: Schema(
-          SchemaType.object,
-          properties: {
-            'modifications': Schema(
-              description: 'The modifications to the recipe you made',
-              SchemaType.string,
-            ),
-            'recipe': Schema(
-              SchemaType.object,
-              properties: {
-                'title': Schema(SchemaType.string),
-                'description': Schema(SchemaType.string),
-                'ingredients': Schema(
-                  SchemaType.array,
-                  items: Schema(SchemaType.string),
-                ),
-                'instructions': Schema(
-                  SchemaType.array,
-                  items: Schema(SchemaType.string),
-                ),
-              },
-            ),
-          },
-        ),
-      ),
-      systemInstruction: Content.system('''
-You are a helpful assistant that generates recipes based on the ingredients and 
-instructions provided:
-${Settings.foodPreferences.isEmpty ? 'I don\'t have any food preferences' : Settings.foodPreferences}
-
-When you generate a recipe, you should generate a JSON object.
-'''),
-    ),
-  );
 
   @override
   void initState() {
@@ -84,6 +61,16 @@ When you generate a recipe, you should generate a JSON object.
     _instructionsController = TextEditingController(
       text: widget.recipe.instructions.join('\n'),
     );
+    
+    // Load any existing related media
+    if (widget.recipe.relatedMedia.isNotEmpty) {
+      _searchResults = widget.recipe.relatedMedia.map((media) => _MediaResult(
+        imageUrl: media['imageUrl'],
+        title: media['title'],
+        source: media['source'],
+        url: media['url'],
+      )).toList();
+    }
   }
 
   @override
@@ -146,10 +133,63 @@ When you generate a recipe, you should generate a JSON object.
             OverflowBar(
               spacing: 16,
               children: [
-                ElevatedButton(onPressed: _onMagic, child: const Text('Magic')),
-                OutlinedButton(onPressed: _onDone, child: const Text('Done')),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.auto_awesome, size: 20),
+                  label: const Text('Find Related Media'),
+                  onPressed: _isSearching ? null : () {
+                    if (_titleController.text.isNotEmpty) {
+                      _searchForMedia();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a recipe title first')),
+                      );
+                    }
+                  },
+                ),
+                OutlinedButton(
+                  onPressed: _onDone,
+                  child: const Text('Done'),
+                ),
               ],
             ),
+            if (_isSearching)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            if (_searchResults.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        'Related Media',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 200,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) => 
+                            SizedBox(width: 160, child: _buildMediaResult(_searchResults[index])),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -159,12 +199,23 @@ When you generate a recipe, you should generate a JSON object.
   void _onDone() {
     if (!_formKey.currentState!.validate()) return;
 
+    // Convert search results to a list of maps for storage
+    final mediaList = _searchResults.map((result) => {
+      'imageUrl': result.imageUrl,
+      'title': result.title,
+      'source': result.source,
+      'url': result.url,
+    }).toList();
+
     final recipe = Recipe(
       id: _isNewRecipe ? const Uuid().v4() : widget.recipe.id,
       title: _titleController.text,
       description: _descriptionController.text,
       ingredients: _ingredientsController.text.split('\n'),
       instructions: _instructionsController.text.split('\n'),
+      relatedMedia: mediaList,
+      tags: widget.recipe.tags,
+      notes: widget.recipe.notes,
     );
 
     if (_isNewRecipe) {
@@ -176,92 +227,95 @@ When you generate a recipe, you should generate a JSON object.
     if (context.mounted) context.goNamed('home');
   }
 
-  Future<void> _onMagic() async {
-    final stream = _provider.sendMessageStream(
-      'Generate a modified version of this recipe based on my food preferences: '
-      '${_ingredientsController.text}\n\n${_instructionsController.text}',
-    );
-    var response = await stream.join();
-    final json = jsonDecode(response);
+  Future<void> _searchForMedia() async {
+    if (_isSearching) return;
+    
+    setState(() {
+      _isSearching = true;
+      _searchResults = [];
+      _error = null;
+    });
 
     try {
-      final modifications = json['modifications'];
-      final recipe = Recipe.fromJson(json['recipe']);
+      // Simulate API call delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // Mock data - in a real app, you would call an actual API here
+      // For example: Google Custom Search API, Unsplash API, or your own backend
+      final mockResults = [
+        _MediaResult(
+          imageUrl: 'https://source.unsplash.com/200x200/?${Uri.encodeComponent(_titleController.text)}',
+          title: '${_titleController.text} Image',
+          source: 'Unsplash',
+          url: 'https://unsplash.com/s/photos/${Uri.encodeComponent(_titleController.text)}',
+        ),
+        _MediaResult(
+          imageUrl: 'https://source.unsplash.com/200x200/?${Uri.encodeComponent(_titleController.text.split(' ').first)}',
+          title: 'Related to ${_titleController.text.split(' ').first}',
+          source: 'Unsplash',
+          url: 'https://unsplash.com/s/photos/${Uri.encodeComponent(_titleController.text.split(' ').first)}',
+        ),
+      ];
 
-      if (!context.mounted) return;
-      final accept = await showDialog<bool>(
-        // ignore: use_build_context_synchronously
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: Text(recipe.title),
-              content: Column(
+      setState(() {
+        _searchResults = mockResults;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load media. Please try again.';
+      });
+    } finally {
+      setState(() {
+        _isSearching = false;
+      });
+    }
+  }
+
+  Widget _buildMediaResult(_MediaResult result) {
+    return GestureDetector(
+      onTap: () {
+        if (result.url != null) {
+          launchUrlString(result.url!);
+        }
+      },
+      child: Card(
+        elevation: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (result.imageUrl != null)
+              Image.network(
+                result.imageUrl!,
+                height: 120,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => 
+                    const Icon(Icons.broken_image, size: 60),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 16,
                 children: [
-                  const Text('Modifications:'),
-                  Text(_wrapText(modifications)),
+                  if (result.title != null)
+                    Text(
+                      result.title!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  if (result.source != null)
+                    Text(
+                      'Source: ${result.source!}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                 ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => context.pop(true),
-                  child: const Text('Accept'),
-                ),
-                TextButton(
-                  onPressed: () => context.pop(false),
-                  child: const Text('Reject'),
-                ),
-              ],
             ),
-      );
-
-      if (accept == true) {
-        setState(() {
-          _titleController.text = recipe.title;
-          _descriptionController.text = recipe.description;
-          _ingredientsController.text = recipe.ingredients.join('\n');
-          _instructionsController.text = recipe.instructions.join('\n');
-        });
-      }
-    } catch (ex) {
-      if (context.mounted) {
-        showDialog(
-          // ignore: use_build_context_synchronously
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('Error'),
-                content: Text(ex.toString()),
-                actions: [
-                  TextButton(
-                    onPressed: () => context.pop(),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-        );
-      }
-    }
+          ],
+        ),
+      ),
+    );
   }
 
-  String _wrapText(String text, {int lineLength = 80}) {
-    final words = text.split(RegExp(r'\s+'));
-    final lines = <String>[];
-
-    var currentLine = '';
-    for (final word in words) {
-      if (currentLine.isEmpty) {
-        currentLine = word;
-      } else if (('$currentLine $word').length <= lineLength) {
-        currentLine += ' $word';
-      } else {
-        lines.add(currentLine);
-        currentLine = word;
-      }
-    }
-
-    if (currentLine.isNotEmpty) lines.add(currentLine);
-    return lines.join('\n');
-  }
+  // _onMagic and _wrapText methods have been removed as they're no longer used
 }

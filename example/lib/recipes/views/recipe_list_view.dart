@@ -19,7 +19,7 @@ class RecipeListView extends StatefulWidget {
 }
 
 class _RecipeListViewState extends State<RecipeListView> {
-  final _expanded = <String, bool>{};
+  // No longer need to track expanded state since we're navigating on tap
 
   Iterable<Recipe> _filteredRecipes(Iterable<Recipe> recipes) =>
       recipes
@@ -56,13 +56,11 @@ class _RecipeListViewState extends State<RecipeListView> {
             itemCount: displayedRecipes.length,
             itemBuilder: (context, index) {
               final recipe = displayedRecipes[index];
-              final recipeId = recipe.id;
               return RecipeView(
-                key: ValueKey(recipeId),
+                key: ValueKey(recipe.id),
                 recipe: recipe,
-                expanded: _expanded[recipeId] == true,
-                onExpansionChanged:
-                    (expanded) => _onExpand(recipe.id, expanded),
+                expanded: false, // No longer used for expansion, just for showing actions
+                onExpansionChanged: null, // No expansion changes to handle
                 onEdit: () => _onEdit(recipe),
                 onDelete: () => _onDelete(recipe),
               );
@@ -70,9 +68,6 @@ class _RecipeListViewState extends State<RecipeListView> {
           );
         },
       );
-
-  void _onExpand(String recipeId, bool expanded) =>
-      _expanded[recipeId] = expanded;
 
   void _onEdit(Recipe recipe) =>
       context.goNamed('edit', pathParameters: {'recipe': recipe.id});
